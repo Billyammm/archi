@@ -12,14 +12,195 @@ const carouselThumbButtons = carouselThumbs
   ? Array.from(carouselThumbs.querySelectorAll(".carousel-thumb"))
   : [];
 
+function ensureHeadAsset(assetTag) {
+  const selector = assetTag.tagName === "LINK"
+    ? `link[rel="${assetTag.getAttribute("rel") || "stylesheet"}"][href="${assetTag.getAttribute("href")}"]`
+    : `script[src="${assetTag.getAttribute("src")}"]`;
+
+  if (document.head.querySelector(selector)) {
+    return;
+  }
+
+  document.head.appendChild(assetTag.cloneNode(true));
+}
+
+function getPageCache() {
+  if (!window.__archiPageCache) {
+    window.__archiPageCache = new Map();
+  }
+
+  return window.__archiPageCache;
+}
+
+async function loadPageHtml(url) {
+  const cache = getPageCache();
+  if (cache.has(url)) {
+    return cache.get(url);
+  }
+
+  const response = await fetch(url, { credentials: "same-origin" });
+  if (!response.ok) {
+    throw new Error(`Failed to load ${url}`);
+  }
+
+  const html = await response.text();
+  cache.set(url, html);
+  return html;
+}
+
+function restartScriptRuntime() {
+  const existing = document.querySelector('script[data-archi-runtime="router"]');
+  if (existing) {
+    existing.remove();
+  }
+
+  const script = document.createElement("script");
+  script.src = `script.js?nav=${Date.now()}`;
+  script.dataset.archiRuntime = "router";
+  document.body.appendChild(script);
+}
+
+async function swapPageContent(url) {
+  const html = await loadPageHtml(url);
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const nextMain = doc.querySelector("main");
+  const currentMain = document.querySelector("main");
+
+  if (!nextMain || !currentMain) {
+    throw new Error("Missing main content");
+  }
+
+  doc.querySelectorAll('link[rel="stylesheet"]').forEach((link) => {
+    ensureHeadAsset(link);
+  });
+
+  document.title = doc.title || document.title;
+
+  const nextDescription = doc.querySelector('meta[name="description"]');
+  if (nextDescription) {
+    let metaDescription = document.head.querySelector('meta[name="description"]');
+    if (!metaDescription) {
+      metaDescription = document.createElement("meta");
+      metaDescription.setAttribute("name", "description");
+      document.head.appendChild(metaDescription);
+    }
+    metaDescription.setAttribute("content", nextDescription.getAttribute("content") || "");
+  }
+
+  currentMain.innerHTML = nextMain.innerHTML;
+  currentMain.classList.remove("page-entering");
+  void currentMain.offsetHeight;
+  currentMain.classList.add("page-entering");
+  window.setTimeout(() => {
+    currentMain.classList.remove("page-entering");
+  }, 760);
+  window.history.pushState({ page: url }, "", url);
+  updateActiveNavLinks();
+  restartScriptRuntime();
+}
+
+function prefetchPage(url) {
+  const cache = getPageCache();
+  if (cache.has(url)) {
+    return;
+  }
+
+  loadPageHtml(url).catch(() => {});
+}
+
+function initializeNavigationRouter() {
+  if (window.__archiNavigationRouterInitialized) {
+    return;
+  }
+
+  window.__archiNavigationRouterInitialized = true;
+
+  document.addEventListener("click", async (event) => {
+    const link = event.target instanceof Element ? event.target.closest("a[href]") : null;
+    if (!link) {
+      return;
+    }
+
+    const href = link.getAttribute("href") || "";
+    if (!href || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:") || href.startsWith("javascript:")) {
+      return;
+    }
+
+    const target = link.getAttribute("target");
+    if (target && target.toLowerCase() !== "_self") {
+      return;
+    }
+
+    const url = new URL(link.href, window.location.href);
+    if (url.origin !== window.location.origin || url.pathname === window.location.pathname) {
+      return;
+    }
+
+    event.preventDefault();
+
+    try {
+      await swapPageContent(url.pathname.split("/").pop() || "index.html");
+    } catch {
+      window.location.href = url.href;
+    }
+  });
+
+  document.addEventListener("pointerenter", (event) => {
+    const link = event.target instanceof Element ? event.target.closest("a[href]") : null;
+    if (!link) {
+      return;
+    }
+
+    const url = new URL(link.href, window.location.href);
+    if (url.origin !== window.location.origin) {
+      return;
+    }
+
+    prefetchPage(url.pathname.split("/").pop() || "index.html");
+  }, { capture: true });
+
+  document.addEventListener("focusin", (event) => {
+    const link = event.target instanceof Element ? event.target.closest("a[href]") : null;
+    if (!link) {
+      return;
+    }
+
+    const url = new URL(link.href, window.location.href);
+    if (url.origin !== window.location.origin) {
+      return;
+    }
+
+    prefetchPage(url.pathname.split("/").pop() || "index.html");
+  });
+
+  window.addEventListener("popstate", async () => {
+    const page = window.location.pathname.split("/").pop() || "index.html";
+    try {
+      await swapPageContent(page);
+    } catch {
+      window.location.reload();
+    }
+  });
+}
+
+function initializeBackgroundTransitionBridge() {
+  // Bridge removed: stable gradient fallback is handled in CSS.
+}
+
 function initializePersistentBackgroundPlayback() {
   const backgroundVideo = document.querySelector(".bg-scene");
   if (!backgroundVideo) {
     return;
   }
 
+  if (window.__archiBackgroundPlaybackInitialized) {
+    return;
+  }
+
+  window.__archiBackgroundPlaybackInitialized = true;
+
   const STORAGE_TIME_KEY = "bgVideoTime";
-  let persistTimer = 0;
+  const STORAGE_UPDATED_AT_KEY = "bgVideoUpdatedAt";
 
   const persistState = () => {
     if (!Number.isFinite(backgroundVideo.currentTime)) {
@@ -27,24 +208,48 @@ function initializePersistentBackgroundPlayback() {
     }
 
     window.sessionStorage.setItem(STORAGE_TIME_KEY, String(backgroundVideo.currentTime));
+    window.sessionStorage.setItem(STORAGE_UPDATED_AT_KEY, String(Date.now()));
+  };
+
+  const applyContinuousTime = () => {
+    const duration = Number.isFinite(backgroundVideo.duration) ? backgroundVideo.duration : 0;
+    const savedTime = Number(window.sessionStorage.getItem(STORAGE_TIME_KEY));
+    const savedUpdatedAt = Number(window.sessionStorage.getItem(STORAGE_UPDATED_AT_KEY));
+
+    if (!Number.isFinite(savedTime)) {
+      backgroundVideo.currentTime = 0;
+      return;
+    }
+
+    let nextTime = savedTime;
+    if (Number.isFinite(savedUpdatedAt) && savedUpdatedAt > 0) {
+      const elapsedSeconds = Math.max(0, (Date.now() - savedUpdatedAt) / 1000);
+      nextTime += Math.min(elapsedSeconds, 120);
+    }
+
+    if (duration > 0) {
+      nextTime = ((nextTime % duration) + duration) % duration;
+      backgroundVideo.currentTime = nextTime;
+    }
   };
 
   const startPlayback = () => {
     const duration = Number.isFinite(backgroundVideo.duration) ? backgroundVideo.duration : 0;
-    const savedTime = Number(window.sessionStorage.getItem(STORAGE_TIME_KEY));
 
-    if (duration > 0 && Number.isFinite(savedTime)) {
-      backgroundVideo.currentTime = Math.max(0, Math.min(savedTime, duration));
+    if (duration <= 0) {
+      return;
     }
 
     backgroundVideo.loop = true;
     backgroundVideo.playbackRate = 1;
 
+    if (!Number.isFinite(backgroundVideo.currentTime) || backgroundVideo.currentTime < 0) {
+      applyContinuousTime();
+    }
+
     const playPromise = backgroundVideo.play();
     if (playPromise && typeof playPromise.catch === "function") {
-      playPromise.catch(() => {
-        // Autoplay policies may block in some contexts; retry on visibility change.
-      });
+      playPromise.catch(() => {});
     }
   };
 
@@ -54,33 +259,15 @@ function initializePersistentBackgroundPlayback() {
     backgroundVideo.addEventListener("loadedmetadata", startPlayback, { once: true });
   }
 
-  backgroundVideo.addEventListener("timeupdate", persistState);
-
-  // Backup persistence in case timeupdate frequency is reduced by browser heuristics.
-  persistTimer = window.setInterval(persistState, 1000);
-
+  backgroundVideo.addEventListener("timeupdate", () => {
+    persistState();
+  });
   window.addEventListener("pagehide", persistState);
   window.addEventListener("beforeunload", persistState);
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") {
-      persistState();
-    } else {
-      const playPromise = backgroundVideo.play();
-      if (playPromise && typeof playPromise.catch === "function") {
-        playPromise.catch(() => {});
-      }
-    }
-  });
-
-  window.addEventListener("unload", () => {
-    if (persistTimer) {
-      window.clearInterval(persistTimer);
-      persistTimer = 0;
-    }
-  });
 }
 
 initializePersistentBackgroundPlayback();
+initializeNavigationRouter();
 
 function getCurrentPageName() {
   const path = window.location.pathname.split("/").pop() || "index.html";

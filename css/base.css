@@ -22,16 +22,7 @@
 
 html {
   scroll-behavior: smooth;
-}
-
-@view-transition {
-  navigation: auto;
-}
-
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation-duration: 240ms;
-  animation-timing-function: ease;
+  background: radial-gradient(circle at 18% 22%, #6f8f7a 0%, #4f6f5c 44%, #405b4b 100%);
 }
 
 html.lightbox-active,
@@ -45,7 +36,7 @@ body {
   isolation: isolate;
   font-family: "Sora", sans-serif;
   color: var(--text);
-  background: #000;
+  background: radial-gradient(circle at 18% 22%, #6f8f7a 0%, #4f6f5c 44%, #405b4b 100%);
   line-height: 1.6;
 }
 
@@ -58,6 +49,7 @@ body {
   object-fit: cover;
   pointer-events: none;
   opacity: 0.92;
+  background: radial-gradient(circle at 18% 22%, #6f8f7a 0%, #4f6f5c 44%, #405b4b 100%);
 }
 
 h1,
@@ -75,6 +67,42 @@ p {
 img {
   max-width: 100%;
   display: block;
+}
+
+@keyframes pageEnterRise {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.99);
+    filter: blur(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+main.page-entering > * {
+  animation: pageEnterRise 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: center top;
+  will-change: transform, opacity, filter;
+}
+
+main.page-entering > *:nth-child(2) {
+  animation-delay: 70ms;
+}
+
+main.page-entering > *:nth-child(3) {
+  animation-delay: 140ms;
+}
+
+main.page-entering > *:nth-child(4) {
+  animation-delay: 210ms;
+}
+
+main.page-entering > *:nth-child(5) {
+  animation-delay: 280ms;
 }
 
 
