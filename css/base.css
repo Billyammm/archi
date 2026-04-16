@@ -35,11 +35,23 @@ body {
   isolation: isolate;
   font-family: "Sora", sans-serif;
   color: var(--text);
-  background:
-    radial-gradient(circle at 14% 12%, rgba(181, 214, 187, 0.06), transparent 24%),
-    radial-gradient(circle at 86% 10%, rgba(210, 173, 103, 0.04), transparent 22%),
-    linear-gradient(160deg, rgba(104, 138, 115, 0.08) 0%, rgba(126, 161, 138, 0.08) 50%, rgba(112, 146, 124, 0.08) 100%);
+  background: #000;
   line-height: 1.6;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -3;
+  pointer-events: none;
+  background: #000;
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+html.bg-pending body::before {
+  opacity: 1;
 }
 
 .bg-scene {
@@ -50,16 +62,12 @@ body {
   height: 100%;
   object-fit: cover;
   pointer-events: none;
-  opacity: 0.90;
-  filter: saturate(0.98) contrast(1.02) brightness(0.98) hue-rotate(3deg);
+  opacity: 0;
+  transition: opacity 220ms ease;
 }
 
-.bg-scene-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: -3;
-  pointer-events: none;
-  background: rgba(0, 0, 0, 0.45);
+.bg-scene.is-ready {
+  opacity: 0.92;
 }
 
 h1,
@@ -79,17 +87,6 @@ img {
   display: block;
 }
 
-.noise-bg {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.07;
-  background-image: linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-  background-size: 20px 20px;
-  mask-image: radial-gradient(circle at 50% 40%, black 30%, transparent 90%);
-  z-index: -2;
-}
 
 .top-progress {
   position: fixed;
@@ -630,10 +627,6 @@ body.lightbox-active .site-header {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bg-scene {
-    display: none;
-  }
-
   .motion-ready,
   .text-motion-left,
   .text-motion-right {

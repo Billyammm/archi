@@ -2,6 +2,7 @@ const menuToggle = document.getElementById("menuToggle");
 const mobileMenu = document.getElementById("mobileMenu");
 const header = document.querySelector(".site-header");
 const topProgress = document.getElementById("topProgress");
+const bgSceneVideo = document.querySelector(".bg-scene");
 const carouselViewport = document.querySelector(".carousel-viewport");
 const carouselTrack = document.getElementById("carouselTrack");
 const carouselPrev = document.getElementById("carouselPrev");
@@ -11,6 +12,42 @@ const carouselThumbs = document.getElementById("carouselThumbs");
 const carouselThumbButtons = carouselThumbs
   ? Array.from(carouselThumbs.querySelectorAll(".carousel-thumb"))
   : [];
+
+function initializeBackgroundVideoGate() {
+  let didResolve = false;
+
+  const markReady = () => {
+    if (didResolve) {
+      return;
+    }
+
+    didResolve = true;
+    document.documentElement.classList.remove("bg-pending");
+
+    if (bgSceneVideo) {
+      bgSceneVideo.classList.add("is-ready");
+    }
+  };
+
+  if (!bgSceneVideo) {
+    markReady();
+    return;
+  }
+
+  if (bgSceneVideo.readyState >= 2) {
+    markReady();
+    return;
+  }
+
+  bgSceneVideo.addEventListener("loadeddata", markReady, { once: true });
+  bgSceneVideo.addEventListener("canplay", markReady, { once: true });
+  bgSceneVideo.addEventListener("playing", markReady, { once: true });
+
+  // Fallback: avoid a permanently hidden video on constrained networks.
+  window.setTimeout(markReady, 1800);
+}
+
+initializeBackgroundVideoGate();
 
 function getCurrentPageName() {
   const path = window.location.pathname.split("/").pop() || "index.html";
@@ -42,6 +79,8 @@ function updateActiveNavLinks() {
       isActive = linkPage === currentPage || isProjectsParent;
     } else if (isResidentialOrCommercialLink) {
       isActive = linkPage === currentPage;
+    } else {
+      isActive = linkPage === "projects.html" && currentPage === "projects.html";
     }
 
     link.classList.toggle("active", isActive);
@@ -70,6 +109,10 @@ window.addEventListener("scroll", () => {
     topProgress.style.width = `${percent}%`;
   }
 
+  if (!header) {
+    return;
+  }
+
   if (window.scrollY > 8) {
     header.classList.add("scrolled");
   } else {
@@ -78,17 +121,19 @@ window.addEventListener("scroll", () => {
 });
 
 const revealEls = document.querySelectorAll(".reveal");
-const observer = new IntersectionObserver(
-  (entries) => {
-    entries.forEach((entry) => {
-      if (entry.isIntersecting) {
-        entry.target.classList.add("in-view");
-        observer.unobserve(entry.target);
-      }
-    });
-  },
-  { threshold: 0.12 }
-);
+const observer = typeof IntersectionObserver !== "undefined"
+  ? new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("in-view");
+          observer.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.12 }
+  )
+  : null;
 
 revealEls.forEach((el) => {
   const rect = el.getBoundingClientRect();
@@ -99,7 +144,11 @@ revealEls.forEach((el) => {
     return;
   }
 
-  observer.observe(el);
+  if (observer) {
+    observer.observe(el);
+  } else {
+    el.classList.add("in-view");
+  }
 });
 
 const textMotionTargets = document.querySelectorAll(
@@ -468,13 +517,35 @@ function getLightboxCaptionFromImage(image) {
 }
 
 let lightboxImageIndex = 0;
-let lightboxImages = modalTriggerImages.map((img) => ({
-  src: img.src,
-  alt: img.alt,
-  caption: getLightboxCaptionFromImage(img),
-}));
+let lightboxImages = [];
 let lightboxScrollPosition = 0;
 let lightboxLastTrigger = null;
+
+function syncLightboxImageSources() {
+  const sources = [...modalTriggerImages];
+
+  if (spotlightPreviewImage) {
+    sources.push(spotlightPreviewImage);
+  }
+
+  const uniqueBySrc = [];
+  const seenSrc = new Set();
+
+  sources.forEach((img) => {
+    if (!img || !img.src || seenSrc.has(img.src)) {
+      return;
+    }
+
+    seenSrc.add(img.src);
+    uniqueBySrc.push({
+      src: img.src,
+      alt: img.alt,
+      caption: getLightboxCaptionFromImage(img),
+    });
+  });
+
+  lightboxImages = uniqueBySrc;
+}
 
 function setLightboxDisplay(source) {
   if (!source || !carouselLightboxImage) {
@@ -492,15 +563,21 @@ function setLightboxDisplay(source) {
 }
 
 function updateLightboxNavButtons() {
-  if (!carouselLightboxPrev || !carouselLightboxNext) return;
-  carouselLightboxPrev.disabled = lightboxImageIndex === 0;
-  carouselLightboxNext.disabled = lightboxImageIndex === lightboxImages.length - 1;
+  if (!carouselLightboxPrev || !carouselLightboxNext) {
+    return;
+  }
+
+  const hasNavigableGallery = lightboxImages.length > 1 && lightboxImageIndex >= 0;
+  carouselLightboxPrev.disabled = !hasNavigableGallery || lightboxImageIndex === 0;
+  carouselLightboxNext.disabled = !hasNavigableGallery || lightboxImageIndex === lightboxImages.length - 1;
 }
 
 function openCarouselLightbox(imageSrc, imageAlt, preferredIndex = -1) {
   if (!carouselLightbox) return;
   if (carouselLightbox.classList.contains("active")) return;
   pauseCarouselAutoAdvance();
+
+  syncLightboxImageSources();
 
   lightboxScrollPosition = window.scrollY || window.pageYOffset || 0;
   lightboxLastTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -619,6 +696,16 @@ if (carouselLightbox) {
   // Click on overlay to close (anywhere except close button or nav buttons)
   carouselLightbox.addEventListener("click", (e) => {
     if (
+      e.target.closest(".carousel-lightbox-media")
+      || e.target.closest(".carousel-lightbox-caption")
+      || e.target.closest("img")
+      || e.target.closest("p")
+      || e.target.closest("button")
+    ) {
+      return;
+    }
+
+    if (
       e.target.closest(".carousel-lightbox-close")
       || e.target.closest(".carousel-lightbox-prev")
       || e.target.closest(".carousel-lightbox-next")
@@ -628,17 +715,12 @@ if (carouselLightbox) {
     closeCarouselLightbox();
   });
 
-  // Escape key to close
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && carouselLightbox.classList.contains("active")) {
-      closeCarouselLightbox();
-    }
-  });
-
-  // Arrow key navigation
   document.addEventListener("keydown", (e) => {
     if (!carouselLightbox.classList.contains("active")) return;
-    if (e.key === "ArrowRight") {
+
+    if (e.key === "Escape") {
+      closeCarouselLightbox();
+    } else if (e.key === "ArrowRight") {
       navigateLightbox(1);
     } else if (e.key === "ArrowLeft") {
       navigateLightbox(-1);
