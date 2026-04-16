@@ -2,7 +2,6 @@ const menuToggle = document.getElementById("menuToggle");
 const mobileMenu = document.getElementById("mobileMenu");
 const header = document.querySelector(".site-header");
 const topProgress = document.getElementById("topProgress");
-const bgSceneVideo = document.querySelector(".bg-scene");
 const carouselViewport = document.querySelector(".carousel-viewport");
 const carouselTrack = document.getElementById("carouselTrack");
 const carouselPrev = document.getElementById("carouselPrev");
@@ -13,41 +12,75 @@ const carouselThumbButtons = carouselThumbs
   ? Array.from(carouselThumbs.querySelectorAll(".carousel-thumb"))
   : [];
 
-function initializeBackgroundVideoGate() {
-  let didResolve = false;
+function initializePersistentBackgroundPlayback() {
+  const backgroundVideo = document.querySelector(".bg-scene");
+  if (!backgroundVideo) {
+    return;
+  }
 
-  const markReady = () => {
-    if (didResolve) {
+  const STORAGE_TIME_KEY = "bgVideoTime";
+  let persistTimer = 0;
+
+  const persistState = () => {
+    if (!Number.isFinite(backgroundVideo.currentTime)) {
       return;
     }
 
-    didResolve = true;
-    document.documentElement.classList.remove("bg-pending");
+    window.sessionStorage.setItem(STORAGE_TIME_KEY, String(backgroundVideo.currentTime));
+  };
 
-    if (bgSceneVideo) {
-      bgSceneVideo.classList.add("is-ready");
+  const startPlayback = () => {
+    const duration = Number.isFinite(backgroundVideo.duration) ? backgroundVideo.duration : 0;
+    const savedTime = Number(window.sessionStorage.getItem(STORAGE_TIME_KEY));
+
+    if (duration > 0 && Number.isFinite(savedTime)) {
+      backgroundVideo.currentTime = Math.max(0, Math.min(savedTime, duration));
+    }
+
+    backgroundVideo.loop = true;
+    backgroundVideo.playbackRate = 1;
+
+    const playPromise = backgroundVideo.play();
+    if (playPromise && typeof playPromise.catch === "function") {
+      playPromise.catch(() => {
+        // Autoplay policies may block in some contexts; retry on visibility change.
+      });
     }
   };
 
-  if (!bgSceneVideo) {
-    markReady();
-    return;
+  if (backgroundVideo.readyState >= 1) {
+    startPlayback();
+  } else {
+    backgroundVideo.addEventListener("loadedmetadata", startPlayback, { once: true });
   }
 
-  if (bgSceneVideo.readyState >= 2) {
-    markReady();
-    return;
-  }
+  backgroundVideo.addEventListener("timeupdate", persistState);
 
-  bgSceneVideo.addEventListener("loadeddata", markReady, { once: true });
-  bgSceneVideo.addEventListener("canplay", markReady, { once: true });
-  bgSceneVideo.addEventListener("playing", markReady, { once: true });
+  // Backup persistence in case timeupdate frequency is reduced by browser heuristics.
+  persistTimer = window.setInterval(persistState, 1000);
 
-  // Fallback: avoid a permanently hidden video on constrained networks.
-  window.setTimeout(markReady, 1800);
+  window.addEventListener("pagehide", persistState);
+  window.addEventListener("beforeunload", persistState);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+      persistState();
+    } else {
+      const playPromise = backgroundVideo.play();
+      if (playPromise && typeof playPromise.catch === "function") {
+        playPromise.catch(() => {});
+      }
+    }
+  });
+
+  window.addEventListener("unload", () => {
+    if (persistTimer) {
+      window.clearInterval(persistTimer);
+      persistTimer = 0;
+    }
+  });
 }
 
-initializeBackgroundVideoGate();
+initializePersistentBackgroundPlayback();
 
 function getCurrentPageName() {
   const path = window.location.pathname.split("/").pop() || "index.html";
@@ -972,3 +1005,4 @@ backToTopLinks.forEach((link) => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
 });
+

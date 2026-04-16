@@ -24,6 +24,16 @@ html {
   scroll-behavior: smooth;
 }
 
+@view-transition {
+  navigation: auto;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 240ms;
+  animation-timing-function: ease;
+}
+
 html.lightbox-active,
 body.lightbox-active {
   overflow: hidden;
@@ -39,21 +49,6 @@ body {
   line-height: 1.6;
 }
 
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -3;
-  pointer-events: none;
-  background: #000;
-  opacity: 0;
-  transition: opacity 200ms ease;
-}
-
-html.bg-pending body::before {
-  opacity: 1;
-}
-
 .bg-scene {
   position: fixed;
   inset: 0;
@@ -62,11 +57,6 @@ html.bg-pending body::before {
   height: 100%;
   object-fit: cover;
   pointer-events: none;
-  opacity: 0;
-  transition: opacity 220ms ease;
-}
-
-.bg-scene.is-ready {
   opacity: 0.92;
 }
 
@@ -250,6 +240,10 @@ body.lightbox-active .site-header {
   border-radius: 8px;
   color: var(--text);
   font-size: 0.9rem;
+}
+
+.nav-dropdown-menu a::after {
+  content: none;
 }
 
 .nav-dropdown-menu a:hover,
