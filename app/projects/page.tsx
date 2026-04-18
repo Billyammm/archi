@@ -44,7 +44,10 @@ type ProjectsContent = {
 };
 
 const projectsContentQuery = groq`
-  *[_type == "siteContent"][0] {
+  coalesce(
+    *[_type == "siteContent" && _id == "siteContent"][0],
+    *[_type == "siteContent"] | order(_updatedAt desc)[0]
+  ) {
     _id,
     projects {
       showcaseEyebrow,
@@ -256,6 +259,16 @@ export default async function ProjectsPage() {
                 </div>
               </Link>
             ))}
+          </div>
+
+          <div id="carouselLightbox" className="carousel-lightbox" aria-hidden="true">
+            <button className="carousel-lightbox-close" type="button" aria-label="Close full image view">&times;</button>
+            <button className="carousel-lightbox-prev" type="button" aria-label="Previous image">&#10094;</button>
+            <div className="carousel-lightbox-media">
+              <img id="carouselLightboxImage" alt="" />
+              <p id="carouselLightboxCaption" className="carousel-lightbox-caption" />
+            </div>
+            <button className="carousel-lightbox-next" type="button" aria-label="Next image">&#10095;</button>
           </div>
         </section>
       </main>

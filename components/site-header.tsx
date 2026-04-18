@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 
 const navItems = [
   { href: "/", label: "Home" },
@@ -15,10 +15,22 @@ export function SiteHeader() {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  function scrollToTopOnActiveHome(event: MouseEvent<HTMLAnchorElement>, href: string) {
+    if (pathname === "/" && href === "/") {
+      event.preventDefault();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }
+
   return (
     <header className="site-header" id="top">
       <div className="container nav-wrap island">
-        <Link className="brand" href="/" aria-label="JCCHUA and Associates home">
+        <Link
+          className="brand"
+          href="/"
+          aria-label="JCCHUA and Associates home"
+          onClick={(event) => scrollToTopOnActiveHome(event, "/")}
+        >
           <span className="brand-mark">JC</span>
           <span className="brand-text">JCCHUA & Associates</span>
         </Link>
@@ -29,6 +41,7 @@ export function SiteHeader() {
               key={item.href}
               className={pathname === item.href ? "active" : ""}
               href={item.href}
+              onClick={(event) => scrollToTopOnActiveHome(event, item.href)}
             >
               {item.label}
             </Link>
@@ -57,7 +70,10 @@ export function SiteHeader() {
             key={item.href}
             className={pathname === item.href ? "active" : ""}
             href={item.href}
-            onClick={() => setIsMobileMenuOpen(false)}
+            onClick={(event) => {
+              scrollToTopOnActiveHome(event, item.href);
+              setIsMobileMenuOpen(false);
+            }}
           >
             {item.label}
           </Link>

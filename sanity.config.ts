@@ -4,7 +4,7 @@ import { visionTool } from "@sanity/vision";
 import { schemaTypes } from "./sanity/schemaTypes";
 
 export default defineConfig({
-  basePath: "/studio", // <--- ADD THIS LINE HERE
+  basePath: "/studio",
   name: "default",
   title: "Joseph Portfolio Studio",
   projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || "",

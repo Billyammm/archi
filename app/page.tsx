@@ -41,7 +41,10 @@ type SiteContent = {
 };
 
 const siteContentQuery = groq`
-  *[_type == "siteContent"][0] {
+  coalesce(
+    *[_type == "siteContent" && _id == "siteContent"][0],
+    *[_type == "siteContent"] | order(_updatedAt desc)[0]
+  ) {
     _id,
     home {
       eyebrow,
@@ -161,7 +164,9 @@ export default async function HomePage() {
 
           <aside className="hero-showcase reveal in-view" aria-label="Featured designs">
             <article className="hero-showcase-main">
-              <Image src={heroMainImage} alt={heroMainAlt} fill priority sizes="(max-width: 940px) 100vw, 46vw" className="hero-showcase-image" />
+              <div className="hero-showcase-media">
+                <Image src={heroMainImage} alt={heroMainAlt} fill priority sizes="(max-width: 940px) 100vw, 46vw" className="hero-showcase-image" />
+              </div>
               <div className="hero-showcase-copy">
                 <p className="tag">{home?.featuredDesign?.eyebrow || "Featured Design"}</p>
                 <h2>{heroMainTitle}</h2>
@@ -171,14 +176,16 @@ export default async function HomePage() {
             <div className="hero-showcase-grid">
               {heroTiles.map((tile) => (
                 <article className="hero-showcase-tile" key={`${tile.title}-${tile.tag}`}>
-                  <Image
-                    src={tile.imageUrl || "/assets/images/lgv.avif"}
-                    alt={tile.imageAlt || tile.title || "Showcase image"}
-                    fill
-                    sizes="(max-width: 940px) 100vw, 22vw"
-                    className="hero-showcase-image"
-                  />
-                  <div>
+                  <div className="hero-showcase-tile-media">
+                    <Image
+                      src={tile.imageUrl || "/assets/images/lgv.avif"}
+                      alt={tile.imageAlt || tile.title || "Showcase image"}
+                      fill
+                      sizes="(max-width: 940px) 100vw, 22vw"
+                      className="hero-showcase-image"
+                    />
+                  </div>
+                  <div className="hero-showcase-tile-copy">
                     <p className="tag">{tile.tag}</p>
                     <h3>{tile.title}</h3>
                     {tile.description ? <p className="hero-showcase-tile-desc">{tile.description}</p> : null}

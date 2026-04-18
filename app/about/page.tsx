@@ -32,7 +32,10 @@ type AboutContent = {
 };
 
 const aboutQuery = groq`
-  *[_type == "siteContent"][0] {
+  coalesce(
+    *[_type == "siteContent" && _id == "siteContent"][0],
+    *[_type == "siteContent"] | order(_updatedAt desc)[0]
+  ) {
     _id,
     about {
       pageTitle,

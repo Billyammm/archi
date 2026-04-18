@@ -1,6 +1,7 @@
 import { defineArrayMember, defineField, defineType } from "sanity";
 
 const siteContentInitialValue = {
+  internalName: "Main Site Content",
   home: {
     eyebrow: "Practical. Sustainable. Human-centered.",
     title: "Architecture has evolved into the design of a lifestyle.",
@@ -149,6 +150,27 @@ export const siteContentSchema = defineType({
   title: "Site Content",
   type: "document",
   initialValue: siteContentInitialValue,
+  preview: {
+    select: {
+      title: "internalName",
+      updatedAt: "_updatedAt",
+    },
+    prepare({ title, updatedAt }) {
+      return {
+        title: title || "Site Content",
+        subtitle: updatedAt ? `Updated ${new Date(updatedAt).toLocaleString()}` : "Not yet published",
+      };
+    },
+  },
+  orderings: [
+    {
+      title: "Last updated (newest first)",
+      name: "updatedDesc",
+      by: [
+        { field: "_updatedAt", direction: "desc" },
+      ],
+    },
+  ],
   groups: [
     { name: "home", title: "Home Page", default: true },
     { name: "about", title: "About Page" },
@@ -156,6 +178,13 @@ export const siteContentSchema = defineType({
     { name: "contact", title: "Contact Page" },
   ],
   fields: [
+    defineField({
+      name: "internalName",
+      title: "Internal Name",
+      type: "string",
+      description: "Editor-only label shown in the Studio list.",
+      validation: (Rule) => Rule.required(),
+    }),
     defineField({
       name: "home",
       title: "Home Page",

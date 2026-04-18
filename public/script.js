@@ -11,6 +11,11 @@ const carouselThumbs = document.getElementById("carouselThumbs");
 const carouselThumbButtons = carouselThumbs
   ? Array.from(carouselThumbs.querySelectorAll(".carousel-thumb"))
   : [];
+const navLinks = Array.from(document.querySelectorAll(".site-nav a, .mobile-nav a"));
+const isStaticHtmlNavigation = navLinks.some((link) => {
+  const href = link.getAttribute("href") || "";
+  return href.endsWith(".html");
+});
 
 function initializePersistentBackgroundPlayback() {
   const backgroundVideo = document.querySelector(".bg-scene");
@@ -107,8 +112,11 @@ function normalizeNavHref(href) {
 }
 
 function updateActiveNavLinks() {
+  if (!isStaticHtmlNavigation) {
+    return;
+  }
+
   const currentPage = getCurrentPageName();
-  const navLinks = document.querySelectorAll('.site-nav a, .mobile-nav a');
   const isProjectSectionPage = currentPage === "residential.html" || currentPage === "commercial.html";
 
   navLinks.forEach((link) => {
@@ -131,7 +139,7 @@ function updateActiveNavLinks() {
   });
 }
 
-if (menuToggle && mobileMenu) {
+if (menuToggle && mobileMenu && isStaticHtmlNavigation) {
   menuToggle.addEventListener("click", () => {
     const isOpen = mobileMenu.classList.toggle("open");
     menuToggle.setAttribute("aria-expanded", String(isOpen));
@@ -511,6 +519,30 @@ syncCarouselState();
 startCarouselThumbAutoScroll();
 startCarouselAutoAdvance();
 
+// Re-sync carousel after media is fully loaded. On first render, image dimensions can
+// settle after script execution, which can delay correct thumb/track behavior.
+const carouselMediaImages = Array.from(document.querySelectorAll(".carousel-slide img, .carousel-thumb img"));
+
+function rehydrateCarouselAfterMediaLoad() {
+  syncCarouselState();
+  refreshCarouselThumbLoopMetrics();
+  restartCarouselAutoAdvance();
+}
+
+if (carouselMediaImages.length > 0) {
+  carouselMediaImages.forEach((image) => {
+    if (image.complete) {
+      return;
+    }
+
+    image.addEventListener("load", rehydrateCarouselAfterMediaLoad, { once: true });
+  });
+}
+
+window.addEventListener("load", () => {
+  rehydrateCarouselAfterMediaLoad();
+});
+
 // Project filtering
 const filterTabs = document.querySelectorAll(".filter-tab");
 const projectCardElements = document.querySelectorAll(".project-card");
@@ -811,7 +843,11 @@ carouselZoomButtons.forEach((button) => {
 // Image click handlers
 modalTriggerImages.forEach((image) => {
   image.style.cursor = "pointer";
-  image.addEventListener("click", () => {
+  image.addEventListener("click", (event) => {
+    if (image.closest(".project-card")) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
     openCarouselLightbox(image.src, image.alt, modalTriggerImages.indexOf(image));
   });
 });
@@ -823,7 +859,9 @@ if (spotlightPreviewImage) {
   });
 }
 
-updateActiveNavLinks();
+if (isStaticHtmlNavigation) {
+  updateActiveNavLinks();
+}
 
 function updateProjectSpotlight(card) {
   if (!card || !spotlightImage || !spotlightTitle || !spotlightType || !spotlightDescription) {
