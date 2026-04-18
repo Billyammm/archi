@@ -31,6 +31,7 @@
 
 .hero-showcase-main,
 .hero-showcase-tile {
+  position: relative;
   border: 1px solid var(--panel-border);
   border-radius: var(--radius-lg);
   overflow: hidden;
@@ -38,15 +39,22 @@
   box-shadow: var(--shadow-soft);
 }
 
+.hero-showcase-image {
+  object-fit: cover;
+}
+
 .hero-showcase-main img,
 .hero-showcase-tile img {
   width: 100%;
   display: block;
-  object-fit: cover;
+}
+
+.hero-showcase-main {
+  aspect-ratio: 16 / 11;
 }
 
 .hero-showcase-main img {
-  aspect-ratio: 16 / 11;
+  object-fit: cover;
 }
 
 .hero-showcase-copy,
@@ -71,11 +79,22 @@
 }
 
 .hero-showcase-tile img {
-  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.hero-showcase-tile {
+  aspect-ratio: 4 / 5;
 }
 
 .hero-showcase-tile h3 {
   font-size: 1.2rem;
+}
+
+.hero-showcase-tile-desc {
+  margin-top: 0.4rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
 }
 
 .strip {
