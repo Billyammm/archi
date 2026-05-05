@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>404 - Page not found</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        font-family: Arial, sans-serif;
+        background: #4f6f5c;
+        color: #f8f3e8;
+      }
+
+      main {
+        width: min(720px, calc(100vw - 2rem));
+        padding: 3rem;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.06);
+        text-align: center;
+      }
+
+      h1 {
+        margin: 0.5rem 0 0;
+        font-size: clamp(2rem, 6vw, 4rem);
+      }
+
+      p {
+        margin: 1rem 0 0;
+        line-height: 1.6;
+      }
+
+      a {
+        display: inline-block;
+        margin-top: 1.75rem;
+        padding: 0.9rem 1.25rem;
+        border-radius: 999px;
+        background: #d8b97a;
+        color: #1f2a23;
+        text-decoration: none;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p>404</p>
+      <h1>Page not found</h1>
+      <p>The page you are looking for does not exist or has been moved.</p>
+      <a href="/">Return home</a>
+    </main>
+  </body>
+</html>
